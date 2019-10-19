@@ -1,0 +1,32 @@
+server {
+    listen      80;
+    server_name site.loc;
+    index index.php index.html;
+    root /var/www/backend/;
+
+
+    location / {
+        try_files $uri $uri/ /index.php?$args;
+    }
+
+    location ~ ^/(protected|framework|themes/\w+/views) {
+        deny all;
+    }
+
+    location ~ /\. {
+        deny all;
+    }
+
+    location ~ \.(js|css|png|jpg|gif|swf|ico|pdf|mov|fla|zip|rar)$ {
+        try_files $uri =404;
+    }
+
+    location ~ \.php$ {
+        fastcgi_split_path_info ^(.+\.php)(/.+)$;
+        fastcgi_pass php-fpm:9000;
+        fastcgi_index index.php;
+        include fastcgi_params;
+        fastcgi_param SCRIPT_FILENAME $document_root$fastcgi_script_name;
+        fastcgi_param PATH_INFO $fastcgi_path_info;
+    }
+}

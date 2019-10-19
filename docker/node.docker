@@ -1,0 +1,8 @@
+FROM node:latest
+
+RUN git config --global user.email "dabbid13@gmail.com" \
+    && git config --global user.name "iferus"
+
+RUN npm install -g @angular/cli
+
+WORKDIR /var/www/frontend

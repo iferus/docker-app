@@ -1,0 +1,107 @@
+version: '2'
+services:
+    nginx:
+        build:
+            context: ./
+            dockerfile: docker/nginx.docker
+        image: nginx:stable
+        ports:
+        - ${NGINX_APP_PORT}:80
+        volumes:
+        - ./:/var/www
+        links:
+        - php-fpm
+    php-fpm:
+        build:
+            context: ./
+            dockerfile: docker/php-fpm.docker
+        volumes:
+            - ./backend:/var/www/backend
+            - ./upload/:/var/www/upload
+            - ./.env:/var/www/.env
+        links:
+            - mysql
+            - redis
+        environment:
+            - DB_PORT=3306
+            - DB_HOST=mysql
+            - REDIS_PORT=6379
+            - REDIS_HOST=redis
+    php-cli:
+        build:
+            context: ./
+            dockerfile: docker/php-cli.docker
+        volumes:
+            - ./:/var/www/
+            - ./docker/:/var/www/docker
+            - ./backend/:/var/www/backend
+            - ./.env:/var/www/.env
+        links:
+            - mysql
+            - redis
+            - rabbit
+            - nginx
+        environment:
+            - DB_PORT=3306
+            - DB_HOST=mysql
+            - REDIS_PORT=6379
+            - REDIS_HOST=redis
+            - PHP_IDE_CONFIG=serverName=${SITE_URL}
+        tty: true
+        command: >
+            bash -c 'cp /var/www/docker/bin/up /var/www/up && chmod +x /var/www/up &&
+                 cp /var/www/docker/bin/down /var/www/down && chmod +x /var/www/down &&
+                 cp /var/www/docker/bin/php /var/www/php && chmod +x /var/www/php &&
+                 cp /var/www/docker/bin/build /var/www/build && chmod +x /var/www/build &&
+                 cp /var/www/docker/bin/composer /var/www/composer && chmod +x /var/www/composer &&
+                 cp /var/www/docker/bin/worker /var/www/worker && chmod +x /var/www/worker &&
+                 cp /var/www/docker/bin/watch /var/www/watch && chmod +x /var/www/watch &&
+                 cp /var/www/docker/bin/npm /var/www/npm && chmod +x /var/www/npm &&
+                 cp /var/www/docker/bin/np /var/www/np && chmod +x /var/www/np
+                 docker-php-entrypoint php -a'
+    mysql:
+        image: mariadb:latest
+        build:
+            context: ./
+            dockerfile: docker/mysql.docker
+        volumes:
+            - ./storage/docker/mysql:/var/lib/mysql
+        environment:
+            - MYSQL_ROOT_PASSWORD=${MYSQL_ROOT_PASSWORD}
+            - MYSQL_USER=${MYSQL_USER}
+            - MYSQL_PASSWORD=${MYSQL_ROOT_PASSWORD}
+            - MYSQL_DATABASE=${MYSQL_DATABASE}
+        ports:
+            - "127.0.0.1:33063:3306/tcp"
+    redis:
+        image: redis:5.0
+        ports:
+            - ${REDIS_APP_PORT}:6379
+    rabbit:
+        build:
+            context: ./
+            dockerfile: docker/rabbit.docker
+        image: rabbitmq:3.7-management
+        hostname: rabbit
+        environment:
+            RABBITMQ_DEFAULT_USER: ${RABBITMQ_DEFAULT_USER}
+            RABBITMQ_DEFAULT_PASS: ${RABBITMQ_DEFAULT_PASS}
+        volumes:
+            - ./storage/docker/rabbitmq/:/var/lib/rabbitmq/mnesia/
+        ports:
+            - ${RABBITMQ_APP_PORT_WEB}:15672
+            - ${RABBITMQ_APP_PORT_WEB_STOMP}:15674
+            - ${RABBITMQ_STD_PORT}:5672
+    node:
+        image: node:latest
+        build:
+            context: ./
+            dockerfile: docker/node.docker
+        volumes:
+            - ./:/var/www/
+            - ./docker/:/var/www/docker
+            - ./frontend/:/var/www/frontend
+            - ./.env:/var/www/.env
+        tty: true
+        ports:
+            - ${NODE_PORT}:4200
